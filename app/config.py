@@ -17,6 +17,7 @@ reaching a deployment is exactly the failure this guards against.
 
 from __future__ import annotations
 
+from datetime import timedelta
 import os
 from pathlib import Path
 
@@ -29,6 +30,12 @@ DEFAULT_DATA_DIR = REPO_ROOT.parent / "library_of_tabel_data"
 
 #: Read from the environment as TL_<KEY>, stored in app.config as <KEY>.
 _ENV_KEYS = ("SECRET_KEY", "PASSWORD_HASH", "USERNAME", "DATA_DIR")
+
+#: Same, but coerced to a bool -- "TL_SESSION_COOKIE_SECURE=0" has to mean off,
+#: and every environment variable is a non-empty string.
+_ENV_BOOL_KEYS = ("SESSION_COOKIE_SECURE",)
+
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
 
 #: Without these the app is either insecure or unopenable, so it will not boot.
 _REQUIRED_KEYS = ("SECRET_KEY", "PASSWORD_HASH")
@@ -52,12 +59,20 @@ class ConfigError(RuntimeError):
 
 def load_config(app, overrides: dict | None = None) -> None:
     """Populate ``app.config`` from the instance file, environment, overrides."""
+    # First, so that every source below can override any of it.
+    _set_cookie_policy(app)
+
     app.config.from_pyfile("config.py", silent=True)
 
     for key in _ENV_KEYS:
         value = os.environ.get(f"TL_{key}")
         if value:
             app.config[key] = value
+
+    for key in _ENV_BOOL_KEYS:
+        value = os.environ.get(f"TL_{key}")
+        if value is not None:
+            app.config[key] = value.strip().lower() in _TRUTHY
 
     if overrides:
         app.config.update(overrides)
@@ -66,6 +81,41 @@ def load_config(app, overrides: dict | None = None) -> None:
     app.config.setdefault("DATA_DIR", DEFAULT_DATA_DIR)
     app.config["DATA_DIR"] = Path(app.config["DATA_DIR"]).expanduser().resolve()
 
+    # Derived, so it waits until SESSION_COOKIE_SECURE has finished resolving.
+    # setdefault, not assignment: an explicit REMEMBER_COOKIE_SECURE from any
+    # source above stands.
+    app.config.setdefault("REMEMBER_COOKIE_SECURE", app.config["SESSION_COOKIE_SECURE"])
+
     missing = [key for key in _REQUIRED_KEYS if not app.config.get(key)]
     if missing:
         raise ConfigError(_MISSING_CONFIG_HELP.format(missing=", ".join(missing)))
+
+
+def _set_cookie_policy(app) -> None:
+    """Session/remember cookie policy.
+
+    Called before every other source, so all of it stays overridable from
+    ``instance/config.py``, a TL_* variable, or a test.
+
+    Plain assignment rather than ``setdefault``, which would be a no-op here:
+    Flask pre-populates its own ``SESSION_COOKIE_*`` keys (SAMESITE=None,
+    SECURE=False), so those keys are never absent to begin with.
+    """
+    # SameSite=Lax is the login-CSRF mitigation: a cross-site POST cannot carry
+    # these cookies. It is why there is no Flask-WTF here -- a CSRF dependency
+    # for a single-user app whose only form is the login form is not the trade
+    # CLAUDE.md 8 asks us to flag.
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
+    app.config["REMEMBER_COOKIE_HTTPONLY"] = True
+
+    # The login outlives the browser session: the phone is a first-class client,
+    # and a password re-typed on a touchscreen at every browser restart is the
+    # friction that gets auth turned off.
+    app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
+
+    # Off by default. Secure cookies over plain http are silently dropped, and
+    # plain http is the whole of the README's local getting-started path -- the
+    # failure would look like "login does nothing". PythonAnywhere is HTTPS, so
+    # deploy sets TL_SESSION_COOKIE_SECURE=1 there (v3).
+    app.config["SESSION_COOKIE_SECURE"] = False

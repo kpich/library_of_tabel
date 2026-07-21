@@ -40,6 +40,12 @@ make run                        # http://127.0.0.1:5000
 `instance/` is gitignored; the password hash and secret key never enter the repo. The app
 refuses to start without them rather than falling back to a development default.
 
+Everything is behind a login — sign in with `USERNAME` and the password you hashed. The gate
+is a single `before_request` covering every route, including the ones that serve tab files,
+so nothing is reachable by guessing a URL. Logins are remembered for 30 days; `/logout` ends
+one. Cookies are not marked `Secure` by default, because local development is plain http —
+set `TL_SESSION_COOKIE_SECURE=1` wherever the app is served over HTTPS.
+
 To run against the real library instead of the samples:
 
 ```sh
@@ -56,7 +62,7 @@ make run TL_DATA_DIR=../library_of_tabel_data
 | `make lint`  | ruff check + format check, writing nothing |
 | `make format`| apply ruff fixes and formatting |
 | `make mypy`  | static type check over `app scripts tests wsgi.py` |
-| `make check` | everything verifiable offline (`lint` + `test`) |
+| `make check` | everything verifiable offline (`lint` + `mypy` + `test`) |
 | `make hash`  | prompt for a password, print its hash |
 | `make install_precommit_hooks` | install the git pre-commit hooks (part of `setup`) |
 | `make clean` | remove `.venv` and caches |

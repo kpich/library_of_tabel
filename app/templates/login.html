@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}sign in - library of tabel{% endblock %}
+
+{% block content %}
+  <h1>library of tabel</h1>
+
+  <form method="post" class="login" action="{{ url_for('auth.login') }}">
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <label for="username">Username</label>
+    {# autocapitalize/autocorrect off: iOS otherwise "helps" with the username. #}
+    <input id="username" name="username" autocomplete="username"
+           autocapitalize="none" autocorrect="off" spellcheck="false"
+           required autofocus>
+
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password"
+           autocomplete="current-password" required>
+
+    <button type="submit">Sign in</button>
+  </form>
+{% endblock %}

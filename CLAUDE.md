@@ -210,8 +210,9 @@ separate auth layer, no sync daemon.
   `@login_required` — covers **every** route including the file-serving routes, so
   tabs/GP files can't be fetched by guessing URLs. Structural rather than per-route,
   because one forgotten decorator is one leaked tab. Exempts only `/login` and `/static/`.
-- `/static/` stays public and therefore holds **only** vendored open-source JS and fonts.
-  Library content is never served from `/static/` — only through `/file/<slug>/<filename>`.
+- `/static/` stays public and therefore holds **only** our own static assets (CSS, the PWA
+  manifest) and vendored open-source JS and fonts — **never library content.** Tabs are
+  served solely through `/file/<slug>/<filename>`, behind the gate.
 - The password hash is read from an **env var / a config file that is NOT committed**
   (`instance/config.py`; see `config.example.py`). The repo never contains the credential.
 - Serve only over HTTPS (PA gives you HTTPS on the `*.pythonanywhere.com` domain).
