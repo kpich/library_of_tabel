@@ -8,7 +8,11 @@ PY := .venv/bin/python
 TL_DATA_DIR ?= samples
 export TL_DATA_DIR
 
-.PHONY: setup install_precommit_hooks lint format run test check hash clean
+# Every Python path we own. Vendored assets and config.example.py (a template,
+# not importable code) are deliberately absent.
+PYTHON_SOURCES := app scripts tests wsgi.py
+
+.PHONY: setup install_precommit_hooks lint format mypy run test check hash clean
 
 setup: install_precommit_hooks  ## create .venv, install from uv.lock, install git hooks
 	@:
@@ -27,6 +31,9 @@ lint: | $(PY)         ## ruff check + format check, without writing anything
 format: | $(PY)       ## apply ruff fixes and formatting
 	.venv/bin/ruff check --fix .
 	.venv/bin/ruff format .
+
+mypy: | $(PY)         ## static type check
+	.venv/bin/mypy $(PYTHON_SOURCES)
 
 run: | $(PY)          ## serve locally with reload
 	$(PY) -m flask --app wsgi run --debug
