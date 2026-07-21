@@ -6,8 +6,6 @@ and that is exactly the point: the gate has to cover a route before the route
 is written, or the first forgotten decorator leaks a tab.
 """
 
-from __future__ import annotations
-
 from urllib.parse import parse_qs, urlsplit
 
 from flask import Flask

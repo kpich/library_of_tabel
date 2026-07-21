@@ -6,8 +6,6 @@ computed once at import -- scrypt is deliberately slow, and it is the same hash
 for every test.
 """
 
-from __future__ import annotations
-
 from flask import Flask
 from flask.testing import FlaskClient
 import pytest

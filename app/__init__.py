@@ -4,8 +4,6 @@ One app serves the UI, the library files, and (from v1) the search. Everything
 attaches to the factory below; ``wsgi.py`` is the PythonAnywhere entry point.
 """
 
-from __future__ import annotations
-
 from flask import Flask
 
 from . import auth
