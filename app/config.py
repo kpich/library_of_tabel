@@ -15,8 +15,6 @@ rather than falling back to a development default -- a silent dev secret
 reaching a deployment is exactly the failure this guards against.
 """
 
-from __future__ import annotations
-
 from datetime import timedelta
 import os
 from pathlib import Path

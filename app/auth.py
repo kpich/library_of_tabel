@@ -12,8 +12,6 @@ identity is whatever ``USERNAME`` is configured to, and the password is checked
 against the ``PASSWORD_HASH`` that ``make hash`` produced.
 """
 
-from __future__ import annotations
-
 import secrets
 from urllib.parse import urlsplit
 

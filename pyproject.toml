@@ -60,8 +60,15 @@ select = [
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
     "SIM", # flake8-simplify
+    "TID", # flake8-tidy-imports
 ]
 ignore = ["SIM108"]  # Allow if-else over ternary for readability
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# requires-python is >=3.11, where `dict | None` and `list[str]` already
+# evaluate natively. Deferred annotations buy nothing here and cost clarity,
+# so the import stays out rather than being cleaned up after the fact.
+"__future__.annotations".msg = "unnecessary on 3.11+; write annotations directly"
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true

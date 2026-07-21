@@ -1,7 +1,5 @@
 """Config resolution, including the refusal to boot without credentials."""
 
-from __future__ import annotations
-
 import pytest
 
 from app import create_app

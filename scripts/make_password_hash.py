@@ -6,8 +6,6 @@ Prompts twice (never echoing), hashes with Werkzeug, and prints the line to
 paste. The password itself is never written anywhere -- only the hash.
 """
 
-from __future__ import annotations
-
 import getpass
 import sys
 

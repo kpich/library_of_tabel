@@ -7,8 +7,6 @@ ignores TL_DATA_DIR and writes them here, third-party tab content would be one
 covers the case where someone force-adds or the ignore rule gets edited away.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest
