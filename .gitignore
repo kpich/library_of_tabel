@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# Credentials. instance/config.py holds the password hash and secret key and is
+# never committed -- see config.example.py for the keys it should define.
+instance/
+
+# The library itself lives in a SEPARATE PRIVATE REPO, not here. This repo is
+# public. These entries exist so that a stray tool run -- or a `tl` bug that
+# ignores TL_DATA_DIR -- cannot quietly stage third-party tab content into a
+# public commit. tests/test_repo_hygiene.py enforces the same rule.
+/library/
+/captures/
+/index/
