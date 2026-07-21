@@ -55,6 +55,7 @@ make run TL_DATA_DIR=../library_of_tabel_data
 | `make test`  | run the test suite |
 | `make lint`  | ruff check + format check, writing nothing |
 | `make format`| apply ruff fixes and formatting |
+| `make mypy`  | static type check over `app scripts tests wsgi.py` |
 | `make check` | everything verifiable offline (`lint` + `test`) |
 | `make hash`  | prompt for a password, print its hash |
 | `make install_precommit_hooks` | install the git pre-commit hooks (part of `setup`) |

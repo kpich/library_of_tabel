@@ -82,6 +82,13 @@ fetch and defeat the auth gate.
 
 **Deploy stays at v3** as CLAUDE.md §9 specs it, rather than being pulled forward.
 
+**mypy is a standalone `make mypy`, not part of `make check` or pre-commit** — matching the
+convention in `~/dev/cycl`. `check_untyped_defs = true` (cycl passes it as a flag; here it
+lives in `pyproject.toml` so editors pick it up too), because without it mypy skips the body
+of every unannotated function, which is most of a young repo. `flask_login` has no `py.typed`
+and no stub package, so it carries an `ignore_missing_imports` override — needed from PR 2 on.
+Wiring it into `check` is a one-line change if the standalone target starts getting skipped.
+
 **Pre-commit hooks exclude `app/static/vendor/` entirely.** Modelled on `~/dev/cycl`, with
 two deliberate departures. Vendored bundles get verified against npm-published hashes
 (PR 4), so `trailing-whitespace`/`end-of-file-fixer` rewriting one would silently break
