@@ -41,7 +41,7 @@ run: | $(PY)          ## serve locally with reload
 test: | $(PY)         ## run the test suite
 	$(PY) -m pytest
 
-check: lint test      ## everything verifiable offline (extended in PR 4 with
+check: lint mypy test ## everything verifiable offline (extended in PR 4 with
                       ## vendored-asset hash verification)
 
 hash: | $(PY)         ## prompt for a password, print its hash for instance/config.py

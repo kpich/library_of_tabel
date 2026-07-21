@@ -20,6 +20,14 @@ PASSWORD_HASH = "replace-me"
 # The single user's login name. There is exactly one user; there is no signup.
 USERNAME = "me"
 
+# Send cookies only over HTTPS. Off by default: a secure cookie over plain http
+# is silently dropped by the browser, and local development is plain http --
+# the failure looks like "logging in does nothing". Turn it on wherever the app
+# is served over HTTPS (PythonAnywhere is, so deploy sets
+# TL_SESSION_COOKIE_SECURE=1 there). REMEMBER_COOKIE_SECURE follows this unless
+# set explicitly.
+# SESSION_COOKIE_SECURE = True
+
 # Where the library lives. This is the separate PRIVATE data repo, normally
 # cloned alongside this one, and it defaults to ../library_of_tabel_data.
 # Point it at "samples" to run against the sample entries in this repo.

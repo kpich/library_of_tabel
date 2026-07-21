@@ -1,0 +1,103 @@
+/* Minimal and mobile-first. No framework: the whole app is a list, a detail
+   page, and this form, and a framework would outweigh all three.
+
+   Lives under /static/ alongside the vendored libraries. That directory is
+   public and unauthenticated, so it holds our own assets and vendored
+   open-source code only -- library content is served solely through
+   /file/<slug>/<filename>, behind the gate. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #fdfdfc;
+  --fg: #1c1b19;
+  --muted: #6c6a66;
+  --line: #d9d6d0;
+  --accent: #7a3e2f;
+  --error-bg: #f6e5e1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171a;
+    --fg: #e7e5e1;
+    --muted: #9b9894;
+    --line: #34343a;
+    --accent: #d99a63;
+    --error-bg: #3a2622;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 1rem/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+h1 {
+  margin: 0 0 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.flashes {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  list-style: none;
+  background: var(--error-bg);
+  border-radius: 0.375rem;
+  color: var(--fg);
+}
+
+.login {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+label {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+label + input {
+  margin-bottom: 0.75rem;
+}
+
+input {
+  padding: 0.625rem 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  /* 16px keeps iOS Safari from zooming the viewport on focus. */
+  font-size: 1rem;
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  margin-top: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
