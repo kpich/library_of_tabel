@@ -28,9 +28,24 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+# Unit tests live beside the code they cover; they are not part of the app.
+exclude = ["*_test.py"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Unit tests sit next to the module they cover (app/config.py -> app/config_test.py);
+# anything that needs the app assembled lives under tests/. One suffix for both,
+# so a file's name never has to encode which kind it is -- its location does.
+python_files = ["*_test.py"]
+testpaths = ["app", "scripts", "tests"]
+
+# A warning we do not know about is a bug we have not read yet. The one standing
+# exception is flask_login 0.6.3 calling the deprecated datetime.utcnow(); it is
+# upstream's to fix, and it is pinned narrowly so that a *different* deprecation
+# from the same module still fails the suite. Drop this line when they release.
+filterwarnings = [
+    "error",
+    "ignore:datetime.datetime.utcnow\\(\\) is deprecated:DeprecationWarning:flask_login.login_manager",
+]
 
 [tool.mypy]
 python_version = "3.13"

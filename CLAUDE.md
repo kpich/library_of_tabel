@@ -53,7 +53,7 @@ This split is what makes the free tier's monthly keep-alive click a non-issue: f
 it disables the *site* (temporary), not the *data*.
 
 **Corollary — never write library data into the code repo.** `library/`, `captures/`, and
-`index/` are gitignored here and `tests/test_repo_hygiene.py` fails if they appear, because
+`index/` are gitignored here and `tests/repo_hygiene_test.py` fails if they appear, because
 a tool that ignores `TL_DATA_DIR` would otherwise put third-party tabs one `git add -A`
 away from a public commit. Anything committed to the public repo must be my own work.
 
@@ -86,6 +86,7 @@ library_of_tabel/
   app/                   # the Flask app served on PythonAnywhere (see §7)
     __init__.py          # create_app() factory
     config.py            # TL_* resolution; refuses to boot without credentials
+    config_test.py       # unit tests sit beside the module (see below)
     auth.py
     views.py
     library.py           # the only module that reads the library from disk
@@ -96,6 +97,8 @@ library_of_tabel/
     library/             # my own original sample entries — runs v0 with no data repo
   scripts/               # tl CLI (see §5), vendoring + sample generators
   tests/
+    integration/         # anything needing the app assembled
+    repo_hygiene_test.py # repo-level guards, tied to no one module
   docs/ROADMAP.md        # build state (see §0)
   pyproject.toml  uv.lock  .python-version  Makefile
   config.example.py      # documents every config key; real values never committed
@@ -128,6 +131,17 @@ relative to the code repo.
 hyphen-separated. Collisions get a `--v2` suffix.
 
 GP/MusicXML files are small (KB–low MB), so plain git handles them — **no Git LFS.**
+
+**Where tests go.** Unit tests for `x.py` live at `x_test.py` next to it — imports stay
+short, and a module that has no test file is visible from the directory listing rather
+than from an absence somewhere else. Everything that needs the app assembled (test client,
+real request cycle, disk) goes under `tests/integration/`; repo-level guards that cover no
+single module stay directly in `tests/`. One `*_test.py` suffix throughout, so a file's
+*location* is what says which kind it is. `make test` runs the lot in one pass —
+`testpaths` spans `app`, `scripts`, and `tests`.
+
+Pytest runs with `filterwarnings = ["error"]`. New warnings are failures; the only standing
+exemption is pinned to the one flask_login deprecation and named in `pyproject.toml`.
 
 ---
 

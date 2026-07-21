@@ -47,7 +47,7 @@ Choices whose *reasons* aren't visible in a diff.
 **Two repos: public code, private data.** The tabs are third-party content; the code isn't.
 Linked only by `TL_DATA_DIR` config — no submodule, so the public repo never advertises
 that the private one exists. `library/`, `captures/`, `index/` are gitignored here and
-`tests/test_repo_hygiene.py` fails if they appear, because a `tl` bug that ignores
+`tests/repo_hygiene_test.py` fails if they appear, because a `tl` bug that ignores
 `TL_DATA_DIR` would otherwise put tabs one `git add -A` from a public commit.
 
 **MIT for our code; vendored libraries keep their own licenses.** ChordSheetJS is
@@ -130,6 +130,26 @@ that check; and alphaTab's JS (1.1 MB) plus the soundfont (977 KB) would trip
 `check-added-large-files`. A single top-level `exclude:` covers both, and keeps the
 large-file guard active everywhere else — which is where it earns its keep.
 
+**Unit tests live beside their module; integration tests live under `tests/`.** `app/config.py`
+is covered by `app/config_test.py`; anything that assembles the app and drives it through a
+test client moved to `tests/integration/`. One `*_test.py` suffix for both, so the *location*
+is what distinguishes them and no file has to be renamed when it changes character. The
+payoff is the negative space: a module with no neighbouring `_test.py` is visible in a
+directory listing, where an untested module under a central `tests/` tree is an absence
+nobody notices. Cost: `testpaths` now spans `app`, `scripts`, `tests`, and the hatch wheel
+build excludes `*_test.py` so tests don't ship inside the package. `tests/__init__.py` and
+`tests/integration/__init__.py` both stay — without them mypy resolves `conftest.py` under
+two module names and refuses to check anything.
+
+**Pytest runs with `filterwarnings = ["error"]`.** A warning nobody is failing on is a bug
+nobody has read. The single exemption is flask_login 0.6.3's `datetime.utcnow()` call, and
+it is pinned by message *and* module rather than by blanket `DeprecationWarning`, so a
+different deprecation out of the same file still breaks the build. Note the escaping
+difference that costs a debugging round if you hit it: pytest treats the `-W` command-line
+message as a literal (`warnings._setoption` escapes it) but the ini `filterwarnings` message
+as a regex — the parens in `utcnow\(\)` need backslashes in `pyproject.toml` and not on the
+command line.
+
 ---
 
 ## Cleanup owed
@@ -141,6 +161,6 @@ large-file guard active everywhere else — which is where it earns its keep.
 - [ ] Set `TL_SESSION_COOKIE_SECURE=1` on PythonAnywhere at v3. It is off by default for
       local http; leaving it off on an HTTPS deployment sends the session cookie in clear
       on any downgraded request.
-- [ ] `flask_login` 0.6.3 calls the deprecated `datetime.utcnow()`, so the remember-me tests
-      emit `DeprecationWarning`s. Upstream's problem, not ours — but it blocks turning on
-      `filterwarnings = ["error"]` in pytest until they release a fix.
+- [ ] Drop the `flask_login` `datetime.utcnow()` entry from pytest's `filterwarnings` once
+      upstream releases a fix. It is the only exemption to `error`; check it still fails
+      without the line before deleting it, so a genuinely fixed upstream is what removes it.

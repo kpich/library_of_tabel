@@ -12,7 +12,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 import pytest
 
-from tests.conftest import PASSWORD, USERNAME
+from tests.integration.conftest import PASSWORD, USERNAME
 
 #: Anonymous requests to all of these must land on /login.
 GATED_PATHS = [
