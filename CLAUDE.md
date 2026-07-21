@@ -1,8 +1,20 @@
 # Tab Library — Repo Spec (`CLAUDE.md`)
 
-A private, single-user system to acquire guitar tabs, normalize them, and view +
-search the collection from phone and computer. One Flask app, hosted on
-PythonAnywhere's free tier. Not a public site.
+A single-user system to acquire guitar tabs, normalize them, and view + search the
+collection from phone and computer. One Flask app, hosted on PythonAnywhere's free
+tier. Not a public site — **the app and the library are private; only the code is public.**
+
+---
+
+## 0. Where we are (read this before anything else)
+
+**`docs/ROADMAP.md` holds the current state of the build** — which phase, which PR is
+next, and the decisions behind choices that aren't visible in a diff. Read it first;
+sessions don't carry over, but that file does.
+
+**Update it in the last commit of every PR.** That is part of the PR, not a follow-up.
+
+---
 
 **How to use this file:** This is the source of truth. Scaffold incrementally by the
 phases in §9 — do not build everything at once. Prefer small, reviewable commits.
@@ -16,16 +28,34 @@ plain git, no LFS, and 512 MiB of free disk holds thousands of pieces.
 
 ## 1. Where things live (read this first)
 
-- **Source of truth = a private git repo + my laptop.** The pipeline runs locally and
-  produces the library and a search index, which get committed to a **private** GitHub
-  (or GitLab) repo. Private = personal storage, not publishing.
-- **PythonAnywhere holds a disposable serving copy.** The Flask app + the library files
-  live on the PA account's disk, pulled from the repo. If the app ever lapses or the
-  account is lost, nothing important is gone — re-pull and reload.
-- **Never let PA hold the only copy.** Everything on PA is reproducible from the repo.
+**Two repos, cloned side by side.** This is the most important structural fact in the
+project — code and library are separate, with different visibility:
+
+```
+library_of_tabel/          PUBLIC   — this repo. Code, MIT licensed.
+library_of_tabel_data/     PRIVATE  — the library. Never public.
+```
+
+- **The code repo is public.** App, `tl` CLI, adapters, skills, sample content. It
+  contains no tabs and no credentials.
+- **The data repo is private, and is the source of truth for the library.** The pipeline
+  runs on my laptop and commits `library/`, `captures/`, and `index/library.db` there.
+  Private because the tabs are third-party content — this split is what keeps them
+  unpublished while the code stays open.
+- **Nothing links the two in git.** No submodule, no URL in the public repo. The app finds
+  the library through the `TL_DATA_DIR` config value, defaulting to the sibling path
+  above. The public repo does not advertise that the private one exists.
+- **PythonAnywhere holds a disposable serving copy** — both repos cloned on PA's disk. If
+  the app lapses or the account is lost, nothing important is gone: re-clone and reload.
+- **Never let PA hold the only copy.** Everything on PA is reproducible from the two repos.
 
 This split is what makes the free tier's monthly keep-alive click a non-issue: forgetting
 it disables the *site* (temporary), not the *data*.
+
+**Corollary — never write library data into the code repo.** `library/`, `captures/`, and
+`index/` are gitignored here and `tests/test_repo_hygiene.py` fails if they appear, because
+a tool that ignores `TL_DATA_DIR` would otherwise put third-party tabs one `git add -A`
+away from a public commit. Anything committed to the public repo must be my own work.
 
 ---
 
@@ -46,8 +76,38 @@ structured, so "clean" there means extract metadata and move the blob into place
 
 ## 3. Repo layout
 
+**Code repo — `library_of_tabel/` (public):**
+
 ```
-tab-library/
+library_of_tabel/
+  adapters/              # one module per source: fetch(url) -> RawArtifact
+  skills/
+    clean-tab/           # Claude Code skill for the chordpro lane (see §6)
+  app/                   # the Flask app served on PythonAnywhere (see §7)
+    __init__.py          # create_app() factory
+    config.py            # TL_* resolution; refuses to boot without credentials
+    auth.py
+    views.py
+    library.py           # the only module that reads the library from disk
+    templates/
+    static/
+      vendor/            # ChordSheetJS + alphaTab, vendored with their licenses
+  samples/
+    library/             # my own original sample entries — runs v0 with no data repo
+  scripts/               # tl CLI (see §5), vendoring + sample generators
+  tests/
+  docs/ROADMAP.md        # build state (see §0)
+  pyproject.toml  uv.lock  .python-version  Makefile
+  config.example.py      # documents every config key; real values never committed
+  wsgi.py                # PythonAnywhere entry point -> app
+  LICENSE                # MIT (vendored assets keep their own — see §8)
+  CLAUDE.md              # this file
+```
+
+**Data repo — `library_of_tabel_data/` (private):**
+
+```
+library_of_tabel_data/
   captures/              # raw drops from acquisition, pre-clean; one dir per capture
     <capture-id>/
       raw.*              # raw scraped text / downloaded file
@@ -59,19 +119,10 @@ tab-library/
       score.gp5 | score.musicxml   # guitarpro lane
   index/
     library.db           # generated SQLite w/ FTS5 (search) — committed
-  adapters/              # one module per source: fetch(url) -> RawArtifact
-  skills/
-    clean-tab/           # Claude Code skill for the chordpro lane (see §6)
-  app/                   # the Flask app served on PythonAnywhere (see §7)
-    __init__.py
-    auth.py
-    views.py
-    templates/
-    static/              # ChordSheetJS + alphaTab assets
-  scripts/               # tl CLI (see §5)
-  wsgi.py                # PythonAnywhere entry point -> app
-  CLAUDE.md              # this file
 ```
+
+The app and CLI reach the data repo through `TL_DATA_DIR` and never assume a path
+relative to the code repo.
 
 `slug` = `normalize(artist)--normalize(title)[--variant]`, ascii, lowercased,
 hyphen-separated. Collisions get a `--v2` suffix.
@@ -117,12 +168,13 @@ is regenerated, never hand-edited.
     ChordSheetJS. Emit a diff; commit only on approval.
   - `guitarpro`: parse header for title/artist/tempo/tracks, move blob, write `meta.yaml`.
 - `tl index` — regenerate `index/library.db` (SQLite + FTS5) from all `meta.yaml`.
-- `tl deploy` — `git add/commit/push` to the private repo. (Actual publish to PA is a
-  `git pull` + reload on PA — see §7.)
+- `tl deploy` — `git add/commit/push` in the **private data repo**. (Actual publish to PA
+  is a `git pull` + reload on PA — see §7.)
 
-`clean` and `index` must be idempotent. Re-running `clean` on an already-clean capture
-produces no diff. Acquisition never runs on PA (free tier has an outbound allowlist and
-tiny CPU budget); it runs on the laptop.
+All paths above are relative to `TL_DATA_DIR`, i.e. the private data repo — `tl` must
+never write into the public code repo. `clean` and `index` must be idempotent: re-running
+`clean` on an already-clean capture produces no diff. Acquisition never runs on PA (free
+tier has an outbound allowlist and tiny CPU budget); it runs on the laptop.
 
 ---
 
@@ -154,11 +206,14 @@ Single app that serves the UI, the files, and the search. No separate static hos
 separate auth layer, no sync daemon.
 
 **Auth (real, because there's now a backend).**
-- Single user. A `@login_required` decorator (Flask-Login, or a minimal session check)
-  gates **every** route — including the file-serving routes, so tabs/GP files can't be
-  fetched by guessing URLs.
-- The password hash is read from a PythonAnywhere **env var / a config file that is NOT
-  committed** to the repo. The repo never contains the credential.
+- Single user. A blanket **`before_request` gate** on the app — not per-route
+  `@login_required` — covers **every** route including the file-serving routes, so
+  tabs/GP files can't be fetched by guessing URLs. Structural rather than per-route,
+  because one forgotten decorator is one leaked tab. Exempts only `/login` and `/static/`.
+- `/static/` stays public and therefore holds **only** vendored open-source JS and fonts.
+  Library content is never served from `/static/` — only through `/file/<slug>/<filename>`.
+- The password hash is read from an **env var / a config file that is NOT committed**
+  (`instance/config.py`; see `config.example.py`). The repo never contains the credential.
 - Serve only over HTTPS (PA gives you HTTPS on the `*.pythonanywhere.com` domain).
 
 **Routes.**
@@ -179,9 +234,13 @@ separate auth layer, no sync daemon.
 **Phone.** Just a browser at `you.pythonanywhere.com`; add a PWA manifest so it installs to
 the home screen. (Offline is a later nicety, not v1.)
 
-**Deploy loop (one place):**
-1. Locally: `tl clean ...` → `tl index` → `tl deploy` (push to private repo).
-2. On PA: open a Bash console → `git pull` → click **Reload** on the Web tab. Done.
+**Deploy loop (one place):** two repos means two clones on PA and two pulls.
+1. Locally: `tl clean ...` → `tl index` → `tl deploy` (push to the private data repo).
+2. On PA: open a Bash console → `git pull` in **both** repos → click **Reload** on the
+   Web tab. Code changes need the code repo pulled; new tabs need the data repo pulled.
+3. PA's virtualenv must be built from the **system** Python — uv-installed interpreters
+   cannot back a PA web app. Use `UV_PYTHON_DOWNLOADS=never` there (local dev has no such
+   constraint), and set `TL_DATA_DIR` to the data repo's path on PA.
 
 **Free-tier reality:** the web app must be renewed ~monthly via one button on the Web tab,
 or it goes offline (files are preserved — see §1). If that click will be forgotten and
@@ -194,10 +253,21 @@ part of this that would ever cost money.
 
 - Pipeline/CLI: **Python** + Typer. GP header parse: **PyGuitarPro** (.gp3–5); for
   .gp7/.gpx, unzip and parse `score.gpif` XML.
-- App: **Flask** + **Flask-Login** + **SQLite/FTS5** (stdlib `sqlite3`). Templates serve
-  **ChordSheetJS** + **@coderline/alphatab** (vendored into `app/static`).
-- Store/transport: **git**, private repo (GitHub/GitLab). No LFS (no PDFs → files stay small).
+- App: **Flask** + **Flask-Login** + **SQLite/FTS5** (stdlib `sqlite3`) + **PyYAML** (the
+  `meta.yaml` records of §4). Templates serve **ChordSheetJS** + **@coderline/alphatab**,
+  vendored into `app/static/vendor/`.
+- Packaging: **uv**, with `uv.lock` committed and `.python-version` at 3.13.
+  `requires-python` stays `>=3.11` as a floor — PA offers 3.11/3.12/3.13.
+- Store/transport: **git** — public code repo, private data repo (§1). No LFS (no PDFs →
+  files stay small).
 - Host: **PythonAnywhere** free tier (512 MiB disk, 1 web app). Deploy via console `git pull`.
+
+**Vendored asset licensing.** The code repo is public, so vendoring is redistribution.
+Each vendored library ships with its upstream `LICENSE` and a `SOURCE.md` naming the
+project and exact version. ChordSheetJS is **GPL-2.0-only**; alphaTab is **MPL-2.0**;
+this repo's own code is **MIT**. Vendored bytes are committed *and* reproducible via
+`scripts/vendor_assets.py`, which verifies them against npm-published hashes — PA's
+outbound allowlist means deploy can never depend on fetching them.
 
 Pin versions. Flag before adding anything beyond this list.
 
@@ -217,4 +287,13 @@ Pin versions. Flag before adding anything beyond this list.
 
 ## 10. Privacy
 
-Personal, single-user library. Keep the repo **private**.
+Personal, single-user library.
+
+- **The data repo stays private.** It holds third-party tab content acquired for personal
+  use; it is personal storage, not publishing. Never make it public, and never mirror its
+  contents into the code repo.
+- **The code repo is public** and must contain only my own work plus properly-licensed
+  vendored dependencies (§8). Sample and test fixtures are original material I wrote — no
+  third-party tabs or lyrics, not even as fixtures.
+- **Credentials live in neither repo.** `instance/config.py` is gitignored; the app refuses
+  to start rather than fall back to a default secret.
