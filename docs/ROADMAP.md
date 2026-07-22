@@ -7,12 +7,17 @@ Read it before starting work, and update it in the last commit of every PR.
 
 ## Current state
 
-**Updated:** 2026-07-21
+**Updated:** 2026-07-22
 **Phase:** v0 — app skeleton
-**Next action:** PR 3 — library I/O (`v0/library-io`)
+**Next action:** PR 4 — chordpro rendering (`v0/chordpro-render`)
 
 To resume: `make setup`, then create `instance/config.py` from `config.example.py` (see
 README), then `make test` to confirm a green baseline before starting the next PR.
+
+`make run` now serves a real library: `TL_DATA_DIR` defaults to `samples/`, which holds one
+entry per lane. Both render as plain text — PR 4 replaces the chordpro `<pre>` with
+ChordSheetJS, PR 5 fills the guitarpro `<div>` with alphaTab. Both attach to the `data-slug`
+/ `data-format` / `data-file` attributes already on those elements in `templates/tab.html`.
 
 ---
 
@@ -25,8 +30,8 @@ vendored assets, with no network. Deploy is **not** part of v0 (it's v3, per CLA
 |----|--------|-------|--------|
 | 1 | `v0/scaffold` | uv + Makefile + config + app factory + `wsgi.py` + LICENSE + pre-commit/ruff + this file + CLAUDE.md rewrite | **done** |
 | 2 | `v0/auth` | Flask-Login, `/login`, `/logout`, blanket `before_request` gate, tests | **done** |
-| 3 | `v0/library-io` | `meta.yaml` loader, `samples/` + generator, `/`, `/tab/<slug>`, `/file/…` | next |
-| 4 | `v0/chordpro-render` | vendor script + manifest, ChordSheetJS, transpose control | |
+| 3 | `v0/library-io` | `meta.yaml` loader, `samples/` + generator, `/`, `/tab/<slug>`, `/file/…` | **done** |
+| 4 | `v0/chordpro-render` | vendor script + manifest, ChordSheetJS, transpose control | next |
 | 5 | `v0/guitarpro-render` | alphaTab + Bravura + soundfont, playback | |
 
 **v0 exit criterion:** logged out in a fresh private window, each of `/`, `/tab/<slug>`,
@@ -111,6 +116,54 @@ fetch and defeat the auth gate.
 
 **Deploy stays at v3** as CLAUDE.md §9 specs it, rather than being pulled forward.
 
+**`/file` serves a whitelist read out of `meta.yaml`, not a sanitized path** (PR 3). The route
+takes two attacker-controlled segments, so neither is turned into a path directly: the slug
+must match a grammar (`[a-z0-9]+(?:-+[a-z0-9]+)*`) that cannot express `.`, `/`, `\` or `%`,
+and the filename must appear in that entry's own `files:` list. A slug that cannot spell a
+path cannot escape one, and there is nothing to strip and therefore nothing to strip wrongly.
+Two useful consequences fall out for free: `meta.yaml` itself is never servable, because no
+record lists it, and neither is anything else that happens to be sitting in the directory.
+The `resolve()`-is-inside-the-entry-dir check behind that is not redundant — the whitelist's
+*contents* come off disk, so a `meta.yaml` listing `../../secret` or a symlink out of the
+library is still a path this app must refuse. All three are tested as tables.
+
+**A broken record is skipped with a warning; the page still renders** (PR 3). From v1 the
+writer is `tl clean` running unattended, and the failure mode to design against is one
+malformed `meta.yaml` emptying the whole shelf. `/tab/<bad-slug>` 404s — absent, malformed
+and not-a-slug are deliberately indistinguishable to the view, since "no such tab" versus
+"broken tab" is not a distinction a visitor can act on. A missing `library/` is likewise
+normal (a clone with no data repo beside it), not an error.
+
+**The guitarpro sample is MusicXML, not `.gp5`** (PR 3). CLAUDE.md §2 makes both canonical
+for the lane, and MusicXML is text: no binary blob in the public repo, no PyGuitarPro
+dependency at v0 (it's a v1 CLI concern), and alphaTab reads it natively. Its DOCTYPE is
+omitted deliberately — the MusicXML DTD lives at musicxml.org, and v0's exit criterion is
+zero external requests. Browsers not fetching external DTDs is not a thing to lean on when
+leaving it out is valid.
+
+**`samples/` is generated *and* committed** (PR 3), like the vendored assets: `scripts/
+make_samples.py` writes it, `scripts/make_samples_test.py` regenerates into `tmp_path` and
+compares bytes. Same failure mode either arrangement guards against — an edit to one side
+that never reaches the other leaves a "reproducible" artifact that doesn't reproduce. It
+also pins `entry_id` by consequence, which is what "stable hash" in §4 has to mean. Nothing
+in the generator may read the clock; `fetched_at` is a literal, or every run is a diff.
+The content is original work written for this repo, per CLAUDE.md §10 — including the
+fixtures, since "no third-party tabs in the public repo" has no fixture exemption.
+
+**Tests pass `DATA_DIR` explicitly** (PR 3). `load_config` reads `TL_DATA_DIR` from the
+environment and the Makefile exports it, so before this a bare `pytest` ran the suite
+against whatever that variable held — on a working laptop, the real private data repo. The
+fixture names it, and defaults to `samples/`, so the view tests cover the path a clean clone
+actually takes and the suite depends on nothing outside the checkout.
+
+**`send_file` responses are closed in tests** (PR 3). The response holds an open file that a
+real WSGI server closes and the test client does not; with `filterwarnings = ["error"]` the
+leak fails the suite as a `ResourceWarning`, so those tests use `with client.get(...)`.
+Related trap, found by a live `curl` and not by a test: a mimetype carrying its own
+`charset` arrives as `text/plain; charset=utf-8; charset=utf-8`, because Flask appends one
+to every `text/*`. `response.mimetype` drops parameters and reads clean either way — assert
+on the whole `Content-Type` header.
+
 **mypy runs in `make check`.** It started standalone, matching the convention in `~/dev/cycl`,
 on the theory that `make mypy` would get run on its own. It didn't — the standalone target was
 being skipped, which is the exact trigger that entry pre-authorized the reversal for. Wired in
@@ -154,9 +207,12 @@ command line.
 
 ## Cleanup owed
 
-- [ ] Delete the placeholder `/` route in `app/__init__.py` once PR 3 registers real views.
-- [ ] Delete `samples/` demo entries once v1 produces real captures — or keep them as test
-      fixtures if the tests come to depend on them. Decide at v1, don't let them linger.
+- [ ] Decide `samples/`'s fate at v1. The tests now *do* depend on it — it is the default
+      `DATA_DIR` for the integration suite — so the "delete it once real captures exist"
+      half of this is no longer free. Keeping it is the likely answer; make it deliberately.
+- [ ] Give `/` a real search box when v1 lands FTS5. It has none today on purpose: a
+      client-side filter would be thrown away, and would quietly stop being the truth once
+      the shelf outgrows one page.
 - [ ] Extend `make check` with vendored-asset hash verification when PR 4 adds it.
 - [ ] Set `TL_SESSION_COOKIE_SECURE=1` on PythonAnywhere at v3. It is off by default for
       local http; leaving it off on an HTTPS deployment sends the session cookie in clear

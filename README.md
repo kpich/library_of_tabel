@@ -52,6 +52,30 @@ To run against the real library instead of the samples:
 make run TL_DATA_DIR=../library_of_tabel_data
 ```
 
+## Samples
+
+`samples/` holds one entry per lane, so a fresh clone has something on the shelf before the
+data repo exists. **The content is my own** — words, chords and a four-bar score written for
+this repo. No third-party tabs or lyrics live in this repo, not even as fixtures.
+
+It is generated and committed, like the vendored browser libraries:
+
+```sh
+python scripts/make_samples.py     # must reproduce the committed bytes exactly
+```
+
+`scripts/make_samples_test.py` asserts exactly that, so an edit to the generator that never
+reaches the output — or the reverse — fails the suite.
+
+## How the library is read
+
+`app/library.py` is the only module that touches library content. `/file/<slug>/<filename>`
+takes two URL segments, so neither becomes a path directly: the slug must match a grammar
+that cannot express `.`, `/`, `\` or `%`, and the filename must be listed in that entry's own
+`meta.yaml`. Anything a record doesn't claim — `meta.yaml` included — is not servable. A
+malformed record is skipped with a warning rather than taken as an outage, so one bad file
+can't empty the shelf.
+
 ## Make targets
 
 | | |

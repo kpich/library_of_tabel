@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>library of tabel</h1>
+
+  {# No search box: FTS5 arrives in v1 (CLAUDE.md 9) and will be a server-side
+     query against index/library.db. A client-side filter now would be thrown
+     away, and would quietly stop being the truth once the shelf outgrows a page. #}
+
+  {% if entries %}
+    <ul class="library">
+      {% for entry in entries %}
+        <li>
+          <a href="{{ url_for('views.tab', slug=entry.slug) }}">
+            <span class="title">{{ entry.title }}</span>
+            <span class="artist">{{ entry.artist }}</span>
+          </a>
+          <span class="meta">
+            <span class="badge badge-{{ entry.format }}">{{ entry.format }}</span>
+            {% if entry.key %}<span>key {{ entry.key }}</span>{% endif %}
+            {% if entry.capo %}<span>capo {{ entry.capo }}</span>{% endif %}
+            {% for tag in entry.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="count">{{ entries | length }} piece{{ '' if entries | length == 1 else 's' }}</p>
+  {% else %}
+    <p class="empty">
+      Nothing here yet. The library lives in the private data repo &mdash; point
+      <code>TL_DATA_DIR</code> at it, or run against the bundled
+      <code>samples/</code>.
+    </p>
+  {% endif %}
+
+  <p class="footer"><a href="{{ url_for('auth.logout') }}">Sign out</a></p>
+{% endblock %}

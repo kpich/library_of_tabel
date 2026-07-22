@@ -1,0 +1,20 @@
+id: 625b9aaabe400fc1
+title: Kitchen Light
+artist: The Repeat Signs
+format: chordpro
+files:
+- tab.chordpro
+tuning: EADGBE
+capo: 0
+key: G
+tempo: 92
+duration_sec: null
+tags:
+- sample
+- acoustic
+source:
+  url: null
+  site: samples
+  fetched_at: '2026-07-22'
+provenance: scripts/make_samples.py
+confidence: high

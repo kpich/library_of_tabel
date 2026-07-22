@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{{ entry.title }} - {{ entry.artist }}{% endblock %}
+
+{% block content %}
+  <p class="footer"><a href="{{ url_for('views.index') }}">&larr; library</a></p>
+
+  <h1>{{ entry.title }}</h1>
+  <p class="artist">{{ entry.artist }}</p>
+
+  <dl class="meta">
+    <dt>format</dt><dd>{{ entry.format }}</dd>
+    <dt>tuning</dt><dd>{{ entry.tuning }}</dd>
+    <dt>capo</dt><dd>{{ entry.capo }}</dd>
+    {% if entry.key %}<dt>key</dt><dd>{{ entry.key }}</dd>{% endif %}
+    {% if entry.tempo %}<dt>tempo</dt><dd>{{ entry.tempo }} bpm</dd>{% endif %}
+    {% if entry.duration_sec %}<dt>length</dt><dd>{{ entry.duration_sec }}s</dd>{% endif %}
+    {% if entry.tags %}<dt>tags</dt><dd>{{ entry.tags | join(', ') }}</dd>{% endif %}
+    {% if entry.source.url %}
+      <dt>source</dt><dd><a href="{{ entry.source.url }}" rel="noreferrer">{{ entry.source.site or entry.source.url }}</a></dd>
+    {% endif %}
+    {% if entry.confidence and entry.confidence != 'high' %}
+      <dt>confidence</dt><dd>{{ entry.confidence }}</dd>
+    {% endif %}
+  </dl>
+
+  {# The data- attributes are the whole interface PRs 4 and 5 need. ChordSheetJS
+     parses the <pre> in place; alphaTab fetches data-file as bytes rather than
+     handing the URL to its own loader, which would bypass the session cookie and
+     therefore the auth gate (ROADMAP, PR 5). #}
+  {% if entry.is_chordpro %}
+    {% if content %}
+      <pre id="artifact" class="chordpro"
+           data-slug="{{ entry.slug }}"
+           data-format="{{ entry.format }}"
+           data-file="{{ url_for('views.file', slug=entry.slug, filename=entry.artifact) }}">{{ content }}</pre>
+    {% else %}
+      <p class="empty">The record lists <code>{{ entry.artifact }}</code>, but it is not on disk.</p>
+    {% endif %}
+  {% else %}
+    <div id="artifact" class="score"
+         data-slug="{{ entry.slug }}"
+         data-format="{{ entry.format }}"
+         data-file="{{ url_for('views.file', slug=entry.slug, filename=entry.artifact) }}">
+      <p class="empty">Score rendering arrives with alphaTab in PR 5.</p>
+    </div>
+  {% endif %}
+
+  <p class="footer">
+    <a href="{{ url_for('views.file', slug=entry.slug, filename=entry.artifact) }}"
+       download>{{ entry.artifact }}</a>
+  </p>
+{% endblock %}
