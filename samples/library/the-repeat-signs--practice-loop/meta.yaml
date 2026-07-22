@@ -1,0 +1,20 @@
+id: f9aa02ba6e10200a
+title: Practice Loop
+artist: The Repeat Signs
+format: guitarpro
+files:
+- score.musicxml
+tuning: EADGBE
+capo: 0
+key: Am
+tempo: 84
+duration_sec: 11
+tags:
+- sample
+- exercise
+source:
+  url: null
+  site: samples
+  fetched_at: '2026-07-22'
+provenance: scripts/make_samples.py
+confidence: high
