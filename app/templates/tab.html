@@ -25,15 +25,29 @@
   </dl>
 
   {# The data- attributes are the whole interface PRs 4 and 5 need. ChordSheetJS
-     parses the <pre> in place; alphaTab fetches data-file as bytes rather than
-     handing the URL to its own loader, which would bypass the session cookie and
-     therefore the auth gate (ROADMAP, PR 5). #}
+     parses the inlined <pre> in place; alphaTab fetches data-file as bytes rather
+     than handing the URL to its own loader, which would bypass the session cookie
+     and therefore the auth gate (ROADMAP, PR 5). #}
   {% if entry.is_chordpro %}
     {% if content %}
-      <pre id="artifact" class="chordpro"
+      <div id="artifact"
            data-slug="{{ entry.slug }}"
            data-format="{{ entry.format }}"
-           data-file="{{ url_for('views.file', slug=entry.slug, filename=entry.artifact) }}">{{ content }}</pre>
+           data-file="{{ url_for('views.file', slug=entry.slug, filename=entry.artifact) }}">
+        {# hidden until chordpro.js confirms the parser loaded -- no dead buttons
+           without JavaScript. #}
+        <div class="transpose" hidden>
+          <button type="button" data-transpose="-1" aria-label="Transpose down">&minus;</button>
+          <span class="transpose-amount" aria-live="polite">0</span>
+          <button type="button" data-transpose="1" aria-label="Transpose up">+</button>
+        </div>
+        <div class="chord-sheet-render"></div>
+        {# The readable source. chordpro.js parses it, then hides it; with no JS it
+           stays visible, so the tab is legible either way. #}
+        <pre class="chordpro source">{{ content }}</pre>
+      </div>
+      <script src="{{ url_for('static', filename='vendor/chordsheetjs/chordsheetjs.min.js') }}"></script>
+      <script src="{{ url_for('static', filename='js/chordpro.js') }}"></script>
     {% else %}
       <p class="empty">The record lists <code>{{ entry.artifact }}</code>, but it is not on disk.</p>
     {% endif %}
