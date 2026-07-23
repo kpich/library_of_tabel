@@ -12,7 +12,7 @@ export TL_DATA_DIR
 # not importable code) are deliberately absent.
 PYTHON_SOURCES := app scripts tests wsgi.py
 
-.PHONY: setup install_precommit_hooks lint format mypy run test check hash clean
+.PHONY: setup install_precommit_hooks lint format mypy vendor_check run test check hash clean
 
 setup: install_precommit_hooks  ## create .venv, install from uv.lock, install git hooks
 	@:
@@ -35,14 +35,16 @@ format: | $(PY)       ## apply ruff fixes and formatting
 mypy: | $(PY)         ## static type check
 	.venv/bin/mypy $(PYTHON_SOURCES)
 
+vendor_check: | $(PY) ## verify committed vendored assets against vendor.lock.json (offline)
+	$(PY) scripts/vendor_assets.py --check
+
 run: | $(PY)          ## serve locally with reload
 	$(PY) -m flask --app wsgi run --debug
 
 test: | $(PY)         ## run the test suite
 	$(PY) -m pytest
 
-check: lint mypy test ## everything verifiable offline (extended in PR 4 with
-                      ## vendored-asset hash verification)
+check: lint mypy vendor_check test ## everything verifiable offline
 
 hash: | $(PY)         ## prompt for a password, print its hash for instance/config.py
 	$(PY) scripts/make_password_hash.py

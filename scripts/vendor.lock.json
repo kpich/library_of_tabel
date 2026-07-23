@@ -1,0 +1,10 @@
+{
+  "chordsheetjs": {
+    "files": {
+      "app/static/vendor/chordsheetjs/LICENSE": "db296f2f7f35bca3a174efb0eb392b3b17bd94b341851429a3dff411b1c2fc73",
+      "app/static/vendor/chordsheetjs/chordsheetjs.min.js": "273763bb28a62ab4f71d94f191a4f3765b57b319099e3397fcdac9e986acfdb3"
+    },
+    "tarball_integrity": "sha512-ckM85eD5uRT9lWMQUfQpWFSCU5ZbwP3ROGpLvgFEzalHd08gjPhoe4wPHo2okjFeRF4rMJI29YY3tBuZGlw33A==",
+    "version": "15.5.2"
+  }
+}

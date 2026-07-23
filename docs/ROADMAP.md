@@ -7,17 +7,20 @@ Read it before starting work, and update it in the last commit of every PR.
 
 ## Current state
 
-**Updated:** 2026-07-22
+**Updated:** 2026-07-23
 **Phase:** v0 — app skeleton
-**Next action:** PR 4 — chordpro rendering (`v0/chordpro-render`)
+**Next action:** PR 5 — guitarpro rendering (`v0/guitarpro-render`)
 
 To resume: `make setup`, then create `instance/config.py` from `config.example.py` (see
-README), then `make test` to confirm a green baseline before starting the next PR.
+README), then `make check` to confirm a green baseline before starting the next PR.
 
-`make run` now serves a real library: `TL_DATA_DIR` defaults to `samples/`, which holds one
-entry per lane. Both render as plain text — PR 4 replaces the chordpro `<pre>` with
-ChordSheetJS, PR 5 fills the guitarpro `<div>` with alphaTab. Both attach to the `data-slug`
-/ `data-format` / `data-file` attributes already on those elements in `templates/tab.html`.
+`make run` serves a real library: `TL_DATA_DIR` defaults to `samples/`, one entry per lane.
+The chordpro lane now renders through ChordSheetJS with a transpose control (PR 4); the
+guitarpro lane is still a placeholder `<div>` for PR 5 to fill with alphaTab. Both attach to
+the `data-slug` / `data-format` / `data-file` attributes on those elements in
+`templates/tab.html`. PR 5 vends alphaTab the same way PR 4 vended ChordSheetJS — through
+`scripts/vendor_assets.py` and `vendor.lock.json` (extend `VENDOR`), and it fetches
+`data-file` as bytes rather than by URL, to stay behind the auth gate.
 
 ---
 
@@ -31,8 +34,8 @@ vendored assets, with no network. Deploy is **not** part of v0 (it's v3, per CLA
 | 1 | `v0/scaffold` | uv + Makefile + config + app factory + `wsgi.py` + LICENSE + pre-commit/ruff + this file + CLAUDE.md rewrite | **done** |
 | 2 | `v0/auth` | Flask-Login, `/login`, `/logout`, blanket `before_request` gate, tests | **done** |
 | 3 | `v0/library-io` | `meta.yaml` loader, `samples/` + generator, `/`, `/tab/<slug>`, `/file/…` | **done** |
-| 4 | `v0/chordpro-render` | vendor script + manifest, ChordSheetJS, transpose control | next |
-| 5 | `v0/guitarpro-render` | alphaTab + Bravura + soundfont, playback | |
+| 4 | `v0/chordpro-render` | vendor script + lock, ChordSheetJS, transpose control | **done** |
+| 5 | `v0/guitarpro-render` | alphaTab + Bravura + soundfont, playback | next |
 
 **v0 exit criterion:** logged out in a fresh private window, each of `/`, `/tab/<slug>`,
 and `/file/<slug>/<file>` lands on `/login`; both lanes render with **zero external network
@@ -115,6 +118,38 @@ silent dev secret reaching a deployment is the exact failure this prevents. The 
 fetch and defeat the auth gate.
 
 **Deploy stays at v3** as CLAUDE.md §9 specs it, rather than being pulled forward.
+
+**Vendoring is fetch-then-lock, verified two different ways** (PR 4). `scripts/vendor_assets.py`
+with no args fetches the npm tarball and checks it against the registry's pinned `sha512`
+integrity — that is the *provenance* check, and it needs the network, so it runs on the laptop
+only. It then records a `sha256` of each extracted file in `scripts/vendor.lock.json`.
+`--check` (wired into `make check`, and covered by `scripts/vendor_assets_test.py`) re-hashes
+the committed files against that lock **offline** — the *integrity* check, the one that has to
+hold on PA where nothing may be fetched. Two hashes because they answer different questions:
+"did npm send the bytes upstream published" vs. "are the committed bytes still those bytes."
+`VENDOR` is a list, so PR 5 adds alphaTab by appending an entry and re-running the script.
+
+**The chordpro render is progressive enhancement, not a hard dependency** (PR 4). The server
+still inlines the raw ChordPro in a `<pre class="chordpro source">`; `app/static/js/chordpro.js`
+parses it, replaces it with ChordSheetJS's `HtmlDivFormatter` output, and only then hides the
+`<pre>`. With JavaScript off, or if the parser throws, the readable source stays on the page —
+a legible tab beats a blank panel. The wiring lives in its own `/static/js/` file rather than
+inline, so no inline-script exception is needed if a CSP is ever added (deferred — see below).
+The formatter emits its own `<h1 class="title">`; the JS strips `.title`/`.subtitle` because
+the page already prints title/artist/meta from `meta.yaml`, which would otherwise double up.
+
+**ChordSheetJS is served from `/static/`, which is gate-exempt — and that is fine** (PR 4).
+The bundle is public open-source code (GPL-2.0-only, redistributed with its `LICENSE` and a
+`SOURCE.md`), not library content, so it serving unauthenticated matches CLAUDE.md §7's rule
+that `/static/` holds only our assets and vendored code. Tabs still come solely through the
+gated `/file/…`. `transpose` re-derives from the original parsed song each step
+(`song.transpose(amount)`), not incrementally, so repeated clicks can't accumulate rounding.
+
+**No CSP at v0** (PR 4). Considered enforcing "zero external requests" structurally with a
+`Content-Security-Policy`, but for a single-user app where every template is ours, the payoff
+is small and a misconfigured policy most likely breaks our *own* scripts. Vendoring already
+delivers the offline/no-CDN property; a same-origin-only test on the page (`test_every_script_is_
+same_origin`) guards the criterion instead. Revisit at v3 deploy, alongside alphaTab's worker.
 
 **`/file` serves a whitelist read out of `meta.yaml`, not a sanitized path** (PR 3). The route
 takes two attacker-controlled segments, so neither is turned into a path directly: the slug
@@ -213,7 +248,8 @@ command line.
 - [ ] Give `/` a real search box when v1 lands FTS5. It has none today on purpose: a
       client-side filter would be thrown away, and would quietly stop being the truth once
       the shelf outgrows one page.
-- [ ] Extend `make check` with vendored-asset hash verification when PR 4 adds it.
+- [x] Extend `make check` with vendored-asset hash verification (PR 4). `make vendor_check`
+      runs `vendor_assets.py --check` offline; it is a prerequisite of `make check`.
 - [ ] Set `TL_SESSION_COOKIE_SECURE=1` on PythonAnywhere at v3. It is off by default for
       local http; leaving it off on an HTTPS deployment sends the session cookie in clear
       on any downgraded request.
